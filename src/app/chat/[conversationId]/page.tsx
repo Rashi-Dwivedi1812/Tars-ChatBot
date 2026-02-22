@@ -135,9 +135,19 @@ export default function ConversationPage() {
                 messages.map((m) => {
                   const isMe = m.senderId === currentUser._id;
                   const reactions = m.reactions ?? [];
+                  const sender = users.find((u) => u._id === m.senderId);
+                  const isGroup = conversation?.isGroup;
                   return (
                     <div key={m._id} className={`msg-row ${isMe ? "msg-row--me" : "msg-row--them"}`}>
+                      {isGroup && !isMe && (
+                        <div className="sender-avatar" title={sender?.name}>
+                          {sender?.name?.[0]?.toUpperCase() ?? "?"}
+                        </div>
+                      )}
                       <div className="msg-group">
+                        {isGroup && !isMe && (
+                          <span className="sender-name">{sender?.name ?? "Unknown"}</span>
+                        )}
                         {/* Bubble */}
                         <div className={`bubble ${isMe ? "bubble--me" : "bubble--them"}`}>
                           {m.isDeleted ? (
@@ -387,7 +397,26 @@ const styles = `
     to   { opacity: 1; transform: translateY(0); }
   }
   .msg-row--me { justify-content: flex-end; }
-  .msg-row--them { justify-content: flex-start; }
+  .msg-row--them { justify-content: flex-start; align-items: flex-end; }
+
+  /* Group chat sender avatar */
+  .sender-avatar {
+    width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
+    background: linear-gradient(135deg, #7c3aed55, #0ea5e955);
+    border: 1px solid rgba(255,255,255,0.1);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.7rem; font-weight: 700; color: rgba(255,255,255,0.8);
+    align-self: flex-end;
+    margin-bottom: 20px;
+  }
+
+  /* Sender name label */
+  .sender-name {
+    font-size: 0.7rem; font-weight: 600;
+    color: rgba(255,255,255,0.4);
+    padding: 0 4px; margin-bottom: 3px;
+    letter-spacing: 0.01em;
+  }
 
   .msg-group {
     display: flex; flex-direction: column;
