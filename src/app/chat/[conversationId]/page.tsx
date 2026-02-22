@@ -9,13 +9,18 @@ import { api } from "../../../../convex/_generated/api";
 export default function ConversationPage() {
   const { conversationId } = useParams();
   const { user } = useUser();
-
   const [message, setMessage] = useState("");
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [showNewMessageButton, setShowNewMessageButton] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const conversation = useQuery(
+  api.conversations.getConversationById,
+  conversationId
+    ? { conversationId: conversationId as any }
+    : "skip"
+);
   const users = useQuery(api.users.getUsers, {});
   const currentUser = useQuery(
     api.users.getCurrentUser,
@@ -143,6 +148,37 @@ export default function ConversationPage() {
 
   return (
     <div className="min-h-screen flex flex-col p-6 bg-black text-white">
+      {/* Conversation Header */}
+{conversation && (
+  <div className="mb-4 border-b border-gray-800 pb-3">
+    {conversation.isGroup ? (
+      <>
+        <h2 className="text-lg font-semibold">
+          {conversation.name || "Unnamed Group"}
+        </h2>
+        <p className="text-sm text-gray-400">
+          {conversation.members.length} members
+        </p>
+      </>
+    ) : (
+      (() => {
+        const otherMemberId = conversation.members.find(
+          (id: any) => id !== currentUser._id
+        );
+
+        const otherUser = users.find(
+          (u) => u._id === otherMemberId
+        );
+
+        return (
+          <h2 className="text-lg font-semibold">
+            {otherUser?.name || "Chat"}
+          </h2>
+        );
+      })()
+    )}
+  </div>
+)}
       {/* Messages */}
       <div className="relative flex-1">
         <div
@@ -214,8 +250,7 @@ export default function ConversationPage() {
                   </span>
 
                   {/* Reaction Display */}
-                  {m.reactions &&
-                    m.reactions.length > 0 && (
+                  {reactions.length > 0 && (
                       <div className="flex gap-2 mt-2 flex-wrap">
                         {[
                           "👍",
@@ -299,7 +334,6 @@ export default function ConversationPage() {
             })
           )}
         </div>
-
         {/* New Message Button */}
         {showNewMessageButton && (
           <button

@@ -111,3 +111,34 @@ export const markAsRead = mutation({
     });
   },
 });
+
+export const getConversationById = query({
+  args: {
+    conversationId: v.id("conversations"),
+  },
+  handler: async (ctx, { conversationId }) => {
+    return await ctx.db.get(conversationId);
+  },
+});
+
+export const createGroupConversation = mutation({
+  args: {
+    name: v.string(),
+    memberIds: v.array(v.id("users")),
+  },
+  handler: async (ctx, { name, memberIds }) => {
+    if (memberIds.length < 2) {
+      throw new Error("Group must have at least 2 members");
+    }
+
+    return await ctx.db.insert("conversations", {
+      isGroup: true,
+      name,
+      members: memberIds,
+      unreadCounts: memberIds.map((id) => ({
+        userId: id,
+        count: 0,
+      })),
+    });
+  },
+});

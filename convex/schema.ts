@@ -10,9 +10,19 @@ export default defineSchema({
   }).index("by_clerkId", ["clerkId"]),
 
   conversations: defineTable({
-  isGroup: v.boolean(),
   name: v.optional(v.string()),
+  isGroup: v.boolean(),
   members: v.array(v.id("users")),
+
+  unreadCounts: v.optional(
+    v.array(
+      v.object({
+        userId: v.id("users"),
+        count: v.number(),
+      })
+    )
+  ),
+
   lastRead: v.optional(
     v.record(v.id("users"), v.number())
   ),
