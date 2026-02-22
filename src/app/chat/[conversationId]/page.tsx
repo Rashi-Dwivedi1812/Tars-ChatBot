@@ -12,6 +12,7 @@ export default function ConversationPage() {
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [showNewMessageButton, setShowNewMessageButton] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const conversation = useQuery(
     api.conversations.getConversationById,
@@ -226,10 +227,17 @@ export default function ConversationPage() {
             )}
           </div>
 
-          {/* Typing Indicator */}
+          {/* Typing Indicator — hide if that user just sent a message in the last 3s */}
           {typingUsers &&
             typingUsers
-              .filter((t) => t.userId !== currentUser._id)
+              .filter((t) => {
+                if (t.userId === currentUser._id) return false;
+                const lastMsg = [...(messages ?? [])]
+                  .reverse()
+                  .find((m) => m.senderId === t.userId);
+                if (lastMsg && Date.now() - lastMsg._creationTime < 3000) return false;
+                return true;
+              })
               .map((t) => {
                 const typingUser = users.find((u) => u._id === t.userId);
                 return (
@@ -247,6 +255,8 @@ export default function ConversationPage() {
             onSubmit={async (e) => {
               e.preventDefault();
               if (!message.trim()) return;
+              // Clear typing indicator immediately on send
+              if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
               await sendMessage({ conversationId: conversationId as any, senderId: currentUser._id, body: message });
               setMessage("");
             }}
@@ -255,9 +265,21 @@ export default function ConversationPage() {
             <input
               value={message}
               onChange={(e) => {
-                setMessage(e.target.value);
+                const val = e.target.value;
+                setMessage(val);
                 if (currentUser) {
-                  updateTyping({ conversationId: conversationId as any, userId: currentUser._id });
+                  if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+                  // Only broadcast typing if there is actual content
+                  if (val.trim()) {
+                    updateTyping({ conversationId: conversationId as any, userId: currentUser._id });
+                    // Auto-stop after 2s of no keystrokes
+                    typingTimeoutRef.current = setTimeout(() => {
+                      typingTimeoutRef.current = null;
+                    }, 2000);
+                  } else {
+                    // Input is empty — stop immediately, don't call updateTyping
+                    typingTimeoutRef.current = null;
+                  }
                 }
               }}
               placeholder="Type a message…"
