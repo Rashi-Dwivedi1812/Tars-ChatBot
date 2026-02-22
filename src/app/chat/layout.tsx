@@ -14,6 +14,7 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<Id<"users">[]>([]);
   const [groupName, setGroupName] = useState("");
+  const [mobileChatOpen, setMobileChatOpen] = useState(false);
 
   const onlineUsers = useQuery(api.presence.getOnlineUsers);
   const currentUser = useQuery(api.users.getCurrentUser, user ? { clerkId: user.id } : "skip");
@@ -34,6 +35,11 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
     }, 30000);
     return () => clearInterval(interval);
   }, [currentUser]);
+
+  // Close mobile chat when navigating back to /chat root
+  useEffect(() => {
+    if (pathname === "/chat") setMobileChatOpen(false);
+  }, [pathname]);
 
   if (!currentUser || !conversations || !allUsers) {
     return (
@@ -58,6 +64,16 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
     return otherUser?.name || "Unknown User";
   };
 
+  const handleConversationClick = (convId: string) => {
+    router.push(`/chat/${convId}`);
+    setMobileChatOpen(true);
+  };
+
+  const handleBack = () => {
+    setMobileChatOpen(false);
+    router.push("/chat");
+  };
+
   return (
     <>
       <style>{styles}</style>
@@ -68,8 +84,7 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
         <div className="grid-bg" />
 
         {/* Sidebar */}
-        <aside className="sidebar">
-          {/* Sidebar Header */}
+        <aside className={`sidebar ${mobileChatOpen ? "sidebar--hidden" : ""}`}>
           <div className="sidebar-header">
             <div className="brand">
               <div className="brand-icon">
@@ -89,7 +104,6 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
             </button>
           </div>
 
-          {/* Search */}
           <div className="search-wrap">
             <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -103,7 +117,6 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
             />
           </div>
 
-          {/* Search Results */}
           {search && (
             <div className="search-results">
               {filteredUsers.length === 0 ? (
@@ -115,7 +128,7 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
                     onClick={async () => {
                       const conversationId = await createConversation({ userA: currentUser._id, userB: u._id });
                       setSearch("");
-                      router.push(`/chat/${conversationId}`);
+                      handleConversationClick(conversationId as string);
                     }}
                     className="search-user-item"
                   >
@@ -127,13 +140,10 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
             </div>
           )}
 
-          {/* Conversations */}
           <div className="conv-section-label">Conversations</div>
 
           {conversations.length === 0 ? (
-            <div className="conv-empty">
-              <span>No conversations yet 👋</span>
-            </div>
+            <div className="conv-empty"><span>No conversations yet 👋</span></div>
           ) : (
             <div className="conv-list">
               {conversations.map((conv: any) => {
@@ -149,7 +159,7 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
                 return (
                   <div
                     key={conv._id}
-                    onClick={() => router.push(`/chat/${conv._id}`)}
+                    onClick={() => handleConversationClick(conv._id)}
                     className={`conv-item ${isActive ? "conv-item--active" : ""}`}
                   >
                     <div className="conv-avatar">
@@ -177,7 +187,16 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
         </aside>
 
         {/* Chat Area */}
-        <main className="chat-area">{children}</main>
+        <main className={`chat-area ${mobileChatOpen ? "chat-area--open" : ""}`}>
+          {/* Mobile-only back button */}
+          <button className="mobile-back-btn" onClick={handleBack}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+            <span>Back</span>
+          </button>
+          {children}
+        </main>
 
         {/* Group Modal */}
         {showGroupModal && (
@@ -225,7 +244,7 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
                     setShowGroupModal(false);
                     setGroupName("");
                     setSelectedUsers([]);
-                    router.push(`/chat/${conversationId}`);
+                    handleConversationClick(conversationId as string);
                   }}
                   className="modal-btn modal-btn--create"
                 >
@@ -247,8 +266,7 @@ const styles = `
   .layout-root {
     font-family: 'DM Sans', sans-serif;
     height: 100vh; display: flex;
-    background: #0a0a0f;
-    color: #fff;
+    background: #0a0a0f; color: #fff;
     position: relative; overflow: hidden;
   }
 
@@ -280,14 +298,13 @@ const styles = `
     background: rgba(255,255,255,0.025);
     backdrop-filter: blur(20px);
     overflow: hidden;
+    transition: transform 0.35s cubic-bezier(0.16,1,0.3,1);
   }
 
-  /* Header */
   .sidebar-header {
     display: flex; align-items: center; justify-content: space-between;
     padding: 20px 18px 16px;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-    flex-shrink: 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06); flex-shrink: 0;
   }
   .brand { display: flex; align-items: center; gap: 10px; }
   .brand-icon {
@@ -314,10 +331,7 @@ const styles = `
   .new-group-btn svg { width: 15px; height: 15px; stroke: rgba(255,255,255,0.6); }
   .new-group-btn:hover { background: rgba(124,58,237,0.25); transform: scale(1.05); }
 
-  /* Search */
-  .search-wrap {
-    position: relative; padding: 14px 16px 10px; flex-shrink: 0;
-  }
+  .search-wrap { position: relative; padding: 14px 16px 10px; flex-shrink: 0; }
   .search-icon {
     position: absolute; left: 28px; top: 50%; transform: translateY(-50%);
     width: 14px; height: 14px; stroke: rgba(255,255,255,0.3);
@@ -333,10 +347,7 @@ const styles = `
   .search-input::placeholder { color: rgba(255,255,255,0.25); }
   .search-input:focus { border-color: rgba(124,58,237,0.45); background: rgba(255,255,255,0.09); }
 
-  /* Search results */
-  .search-results {
-    padding: 0 12px 10px; flex-shrink: 0;
-  }
+  .search-results { padding: 0 12px 10px; flex-shrink: 0; }
   .search-empty { font-size: 0.78rem; color: rgba(255,255,255,0.3); text-align: center; padding: 8px 0; }
   .search-user-item {
     display: flex; align-items: center; gap: 10px;
@@ -354,7 +365,6 @@ const styles = `
     font-size: 0.75rem; font-weight: 600; color: #fff;
   }
 
-  /* Conversations */
   .conv-section-label {
     font-size: 0.68rem; font-weight: 600; letter-spacing: 0.08em;
     text-transform: uppercase; color: rgba(255,255,255,0.25);
@@ -374,8 +384,7 @@ const styles = `
   .conv-item {
     display: flex; align-items: center; gap: 12px;
     padding: 10px 10px; border-radius: 12px;
-    cursor: pointer; margin-bottom: 2px;
-    transition: background 0.15s;
+    cursor: pointer; margin-bottom: 2px; transition: background 0.15s;
   }
   .conv-item:hover { background: rgba(255,255,255,0.06); }
   .conv-item--active { background: rgba(124,58,237,0.2) !important; }
@@ -385,8 +394,7 @@ const styles = `
     background: linear-gradient(135deg, #7c3aed55, #0ea5e955);
     border: 1px solid rgba(255,255,255,0.1);
     display: flex; align-items: center; justify-content: center;
-    font-size: 0.9rem; font-weight: 700; color: #fff;
-    position: relative;
+    font-size: 0.9rem; font-weight: 700; color: #fff; position: relative;
   }
   .online-dot {
     position: absolute; bottom: -2px; right: -2px;
@@ -410,20 +418,23 @@ const styles = `
   }
 
   /* Chat area */
-  .chat-area { flex: 1; position: relative; z-index: 10; overflow: hidden; }
+  .chat-area {
+    flex: 1; position: relative; z-index: 10; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+
+  /* Mobile back button — hidden on desktop */
+  .mobile-back-btn { display: none; }
 
   /* Modal */
   .modal-overlay {
     position: fixed; inset: 0; z-index: 50;
-    background: rgba(0,0,0,0.7);
-    backdrop-filter: blur(8px);
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
     display: flex; align-items: center; justify-content: center;
   }
   .modal {
-    background: #13131a;
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 20px; padding: 28px;
-    width: 380px; max-width: 90vw;
+    background: #13131a; border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px; padding: 28px; width: 380px; max-width: 90vw;
     box-shadow: 0 32px 80px rgba(0,0,0,0.6);
     animation: modalIn 0.25s cubic-bezier(0.16,1,0.3,1) both;
   }
@@ -431,37 +442,26 @@ const styles = `
     from { opacity: 0; transform: scale(0.95) translateY(12px); }
     to   { opacity: 1; transform: scale(1) translateY(0); }
   }
-  .modal-header {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 20px;
-  }
-  .modal-title {
-    font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 700;
-    color: #fff;
-  }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .modal-title { font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 700; color: #fff; }
   .modal-close {
     width: 28px; height: 28px; border-radius: 8px;
     background: rgba(255,255,255,0.07); border: none;
-    color: rgba(255,255,255,0.5); cursor: pointer; font-size: 0.75rem;
-    transition: background 0.15s;
+    color: rgba(255,255,255,0.5); cursor: pointer; font-size: 0.75rem; transition: background 0.15s;
   }
   .modal-close:hover { background: rgba(239,68,68,0.25); color: #f87171; }
 
   .modal-input {
     width: 100%; padding: 11px 14px;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 12px; color: #fff;
-    font-size: 0.88rem; font-family: 'DM Sans', sans-serif;
-    outline: none; margin-bottom: 16px;
-    transition: border-color 0.2s;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px; color: #fff; font-size: 0.88rem;
+    font-family: 'DM Sans', sans-serif; outline: none; margin-bottom: 16px; transition: border-color 0.2s;
   }
   .modal-input::placeholder { color: rgba(255,255,255,0.25); }
   .modal-input:focus { border-color: rgba(124,58,237,0.5); }
 
   .modal-user-list {
-    max-height: 180px; overflow-y: auto;
-    margin-bottom: 20px;
+    max-height: 180px; overflow-y: auto; margin-bottom: 20px;
     scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.08) transparent;
   }
   .modal-user-list::-webkit-scrollbar { width: 3px; }
@@ -469,14 +469,11 @@ const styles = `
 
   .modal-user-row {
     display: flex; align-items: center; gap: 10px;
-    padding: 8px 6px; border-radius: 10px; cursor: pointer;
-    transition: background 0.15s;
+    padding: 8px 6px; border-radius: 10px; cursor: pointer; transition: background 0.15s;
   }
   .modal-user-row:hover { background: rgba(255,255,255,0.05); }
   .modal-user-name { flex: 1; font-size: 0.88rem; color: rgba(255,255,255,0.8); }
-  .modal-checkbox {
-    width: 16px; height: 16px; accent-color: #7c3aed; cursor: pointer;
-  }
+  .modal-checkbox { width: 16px; height: 16px; accent-color: #7c3aed; cursor: pointer; }
 
   .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
   .modal-btn {
@@ -486,10 +483,7 @@ const styles = `
   }
   .modal-btn:hover { opacity: 0.85; transform: translateY(-1px); }
   .modal-btn--cancel { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.6); }
-  .modal-btn--create {
-    background: linear-gradient(135deg, #7c3aed, #0ea5e9);
-    color: #fff; box-shadow: 0 4px 16px rgba(124,58,237,0.35);
-  }
+  .modal-btn--create { background: linear-gradient(135deg, #7c3aed, #0ea5e9); color: #fff; box-shadow: 0 4px 16px rgba(124,58,237,0.35); }
 
   /* Loading */
   .loading-screen {
@@ -506,4 +500,50 @@ const styles = `
     animation: spin 0.8s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Mobile (≤ 640px) ── */
+  @media (max-width: 640px) {
+
+    /* Sidebar fills full screen by default on mobile */
+    .sidebar {
+      position: absolute; inset: 0;
+      width: 100%; z-index: 20;
+      transform: translateX(0);
+      border-right: none;
+    }
+
+    /* Slide sidebar out when chat is open */
+    .sidebar--hidden {
+      transform: translateX(-100%);
+      pointer-events: none;
+    }
+
+    /* Chat area starts off-screen to the right */
+    .chat-area {
+      position: absolute; inset: 0;
+      width: 100%; z-index: 10;
+      transform: translateX(100%);
+      transition: transform 0.35s cubic-bezier(0.16,1,0.3,1);
+    }
+
+    /* Slide chat in when open */
+    .chat-area--open {
+      transform: translateX(0);
+    }
+
+    /* Show back button on mobile */
+    .mobile-back-btn {
+      display: flex; align-items: center; gap: 6px;
+      position: absolute; top: 14px; left: 14px; z-index: 30;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px; padding: 7px 14px;
+      color: rgba(255,255,255,0.75);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.82rem; font-weight: 500;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .mobile-back-btn svg { width: 14px; height: 14px; stroke: rgba(255,255,255,0.75); }
+    .mobile-back-btn:hover { background: rgba(255,255,255,0.12); }
+  }
 `;
