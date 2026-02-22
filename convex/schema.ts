@@ -19,11 +19,20 @@ export default defineSchema({
 }),
 
   messages: defineTable({
-    conversationId: v.id("conversations"),
-    senderId: v.id("users"),
-    body: v.string(),
-    createdAt: v.number(),
-  }).index("by_conversation", ["conversationId"]),
+  conversationId: v.id("conversations"),
+  senderId: v.id("users"),
+  body: v.string(),
+  isDeleted: v.optional(v.boolean()),
+  reactions: v.optional(
+    v.array(
+      v.object({
+        userId: v.id("users"),
+        emoji: v.string(),
+      })
+    )
+  ),
+})
+.index("by_conversation", ["conversationId"]),
   
   presence: defineTable({
       userId: v.id("users"),
