@@ -140,6 +140,35 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
             </div>
           )}
 
+          {/* All Users */}
+          <div className="conv-section-label">People</div>
+          <div className="users-list">
+            {allUsers
+              .filter((u) => u.clerkId !== user?.id)
+              .map((u) => {
+                const isOnline = onlineUsers?.some((p: any) => p.userId === u._id);
+                return (
+                  <div
+                    key={u._id}
+                    onClick={async () => {
+                      const conversationId = await createConversation({ userA: currentUser._id, userB: u._id });
+                      handleConversationClick(conversationId as string);
+                    }}
+                    className="user-item"
+                  >
+                    <div className="user-item-avatar">
+                      {u.name[0]?.toUpperCase()}
+                      <span className={`online-dot ${isOnline ? "online-dot--on" : "online-dot--off"}`} />
+                    </div>
+                    <div className="user-item-info">
+                      <span className="user-item-name">{u.name}</span>
+                      <span className="user-item-status">{isOnline ? "Online" : "Offline"}</span>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+
           <div className="conv-section-label">Conversations</div>
 
           {conversations.length === 0 ? (
@@ -363,6 +392,45 @@ const styles = `
     border: 1px solid rgba(255,255,255,0.1);
     display: flex; align-items: center; justify-content: center;
     font-size: 0.75rem; font-weight: 600; color: #fff;
+  }
+
+  /* Users list */
+  .users-list {
+    padding: 2px 10px 8px;
+    flex-shrink: 0;
+    max-height: 220px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.07) transparent;
+  }
+  .users-list::-webkit-scrollbar { width: 3px; }
+  .users-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
+
+  .user-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: 11px;
+    cursor: pointer; transition: background 0.15s;
+    margin-bottom: 2px;
+  }
+  .user-item:hover { background: rgba(255,255,255,0.06); }
+
+  .user-item-avatar {
+    width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+    background: linear-gradient(135deg, #7c3aed55, #0ea5e955);
+    border: 1px solid rgba(255,255,255,0.1);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.82rem; font-weight: 700; color: #fff;
+    position: relative;
+  }
+
+  .user-item-info { flex: 1; min-width: 0; }
+  .user-item-name {
+    display: block; font-size: 0.85rem; font-weight: 500;
+    color: rgba(255,255,255,0.85);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .user-item-status {
+    font-size: 0.7rem; color: rgba(255,255,255,0.3);
   }
 
   .conv-section-label {
