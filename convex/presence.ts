@@ -2,9 +2,7 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
 export const updatePresence = mutation({
-  args: {
-    userId: v.id("users"),
-  },
+  args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
     const existing = await ctx.db
       .query("presence")
@@ -28,12 +26,14 @@ export const updatePresence = mutation({
 
 export const getOnlineUsers = query({
   handler: async (ctx) => {
-    const all = await ctx.db.query("presence").collect();
+    const fiveMinutesAgo =
+      Date.now() - 60 * 1000; 
 
-    const now = Date.now();
-
-    return all.filter(
-      (p) => now - p.lastSeen < 20000 // 20 seconds threshold
-    );
+    return await ctx.db
+      .query("presence")
+      .filter((q) =>
+        q.gt(q.field("lastSeen"), fiveMinutesAgo)
+      )
+      .collect();
   },
 });
